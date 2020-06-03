@@ -1,29 +1,21 @@
-%% Read Sensors and Software Data
-% This Script Reads the Binary Multi-channel GPR Data and Performs the
-% pre-processing and signal processing routines. 
-% GPS Locations are incorporated in NSIDC Sea Ice Polarstereographic North
-%
-% The Array Geometry is Installed
-% The Acquisition Method is Decided
-% The Near Channel (7) is Killed
-% The Time Window can be trimmed
-% Data is de-multiplex (grouped into channels) and coarse trace shifts
-% are applied as the first cut at correcting for digital time-sampling 
-% errors.
-% Inside the function wrapper processCommonOffset.m de-WOW filtering and
-% trace stacking are applied. There are Various filter parameters decided
-% in this function.
+%% processCMP_HHHV_NSIDC.m
+% This work flow assigns metadata to the structure MD and radar imagery and
+% spatatial data to the structure D. Preprocesssed .nc data is read from
+% the assigned data directory. Signal Processing is a bandpass filter, 
+% time-zero correction, and t-squared gain (geometric spreading correction).
+% The processing options can be modified inside processCMP.m Modifications
+% to the TWT window, data padding, and trace thinning options are 
+% controlled in this script.
 
+% Allocation
     D.Rad = cell(1,MD.nFiles);
     MD.trhd = cell(1,MD.nFiles);
-%     GPS = cell(1,MD.nFiles);
-%     Year = cell(1,MD.nFiles);
     TimeAxis = cell(1,MD.nFiles);
     
     for ii = 1 : MD.nFiles
         tic
         %------------------------------------------------------------------
-        % Multiplexed Channel Record
+        % Read and Process GPR Common Midpoint Gathers
         filename = MD.fileNames(ii).name;
         filepath = fullfile(MD.dataDir,filename);
         % Read netCDF data file
@@ -36,10 +28,6 @@
         clear('ncRad');
         MD.f0 = (MD.trhd{ii}(3,1)); % [MHz]
         MD.dt = MD.trhd{ii}(4,1); % [ns]
-%         D.dx = diff(MD.trhd{ii}(2,1:2)); % [m]
-        % Need to Automate Offset Array from .nc File
-%         offsetArray = unique(MD.trhd{ii}(22,1:100));
-
  
         % Nominal Frequency GHz
         MD.f0GHz = MD.f0/1000;
@@ -74,15 +62,9 @@
         % Allocation Here
         if ii == 1
             Radar = cell(1,MD.nFiles); traceIx = cell(1,MD.nFiles);
-%             Array = cell(nChan,MD.nFiles);
         end
         Radar{ii} = D.Rad{ii};
         % CMP Polarizations were DeMUXd in preProcessing
-%         for jj = chan
-%             % DeMux Sequential Data
-%             % GPS DeadReckoning completed in preProcessing
-%             [Radar{jj,ii},MD.trhd{ii},traceIx{jj,ii},D.Distance{jj,ii}] = deMuxNSIDC(D.Rad{ii},MD.trhd{ii},chan(jj));
-%         end
         
         % Remove Every Nth Trace for Data Reduction
         rmNtrc = 2;
@@ -121,9 +103,7 @@
                 minChan = ii;
             end
         end
-%         clear('TimeAxis')
-        % Store Travel-Time Axis
-%             TimeAxis = [0:dt:(dt.*(minIx-1))]';
+        
         % Trim Channels to Consistent Travel Time Axis
         if ii == MD.nFiles
         for jj = 1:MD.nFiles%chan
